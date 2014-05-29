@@ -627,6 +627,7 @@ static unsigned long _dict_next_power(unsigned long size)
             return i;
         i *= 2;
     }
+    return 0;
 }
 
 /* Returns the index of a free slot that can be populated with
@@ -752,14 +753,3 @@ void dict_disable_resize(void)
 {
     dict_can_resize = 0;
 }
-
-void *alloc_key(dict *d, int size)
-{
-    return malloc(size);
-}
-
-void *alloc_val(dict *d, int size)
-{
-    return malloc(size);
-}
-

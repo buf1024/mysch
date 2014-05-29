@@ -1067,56 +1067,116 @@ int __ct_get_test_count()
 
 
 #define ASSERT_EQ(a, b) do{                                          \
-    EXPECT_EQ(a, b);                                                 \
-    return;                                                          \
+    if((a) != (b)) {                                                 \
+        char fmt[1024] = {0};                                        \
+        const char* __f1 = NULL;                                     \
+        const char* __f2 = NULL;                                     \
+        __FOMATTER(__f1, (a));                                       \
+        __FOMATTER(__f2, (b));                                       \
+        snprintf(fmt, sizeof(fmt) - 1,                               \
+                "[W]File: %s Line: %d EXPECT: %s ACTUAL: %s\n",      \
+                __FILE__, __LINE__, __f1, __f2);                     \
+        printf(fmt, (a), (b));                                       \
+        __ct_add_failed_test(__func__);                              \
+        return;                                                      \
+    }                                                                \
 }while(0)
 
 
 #define ASSERT_NEQ(a, b) do{                                         \
-    EXPECT_NEQ(a, b);                                                \
-    return;                                                          \
+    if((a) == (b)){                                                  \
+        char fmt[1024] = {0};                                        \
+        const char* __f1 = NULL;                                     \
+        const char* __f2 = NULL;                                     \
+        __FOMATTER(__f1, (a));                                       \
+        __FOMATTER(__f2, (b));                                       \
+        snprintf(fmt, sizeof(fmt) - 1,                               \
+                "[W]File: %s Line: %d EXPECT: %s != %s ACTUAL: %s == %s\n",\
+                __FILE__, __LINE__, __f1, __f2, __f1, __f2);         \
+        printf(fmt, (a), (b), (a), (b));                             \
+        __ct_add_failed_test(__func__);                              \
+        return;                                                      \
+    }                                                                \
 }while(0)
 
 #define ASSERT_STREQ(a, b) do{                                       \
-    EXPECT_STREQ(a, b);                                              \
-    return;                                                          \
+    if(strncmp((a), (b), strlen((a))) != 0) {                        \
+        printf("[W]File: %s Line: %d EXPECT: %s ACTUAL: %s\n",       \
+                __FILE__, __LINE__, (a), (b));                       \
+        __ct_add_failed_test(__func__);                              \
+        return;                                                      \
+    }                                                                \
 }while(0)
 
 #define ASSERT_STRNEQ(a, b) do{                                      \
-    EXPECT_STRNEQ(a, b);                                             \
-    return;                                                          \
+    if(strncmp((a), (b), strlen(a)) == 0) {                          \
+        printf("[W]File: %s Line: %d EXPECT: %s != %s ACTUAL: %s == %s\n",\
+                __FILE__, __LINE__, (a), (b), (a), (b));             \
+            __ct_add_failed_test(__func__);                          \
+        return;                                                      \
+    }                                                                \
 }while(0)
 
 #define ASSERT_STRCASEEQ(a, b) do{                                   \
-    EXPECT_STREQ(a, b);                                              \
-    return;                                                          \
+    if(strncasecmp((a), (b), strlen((a))) != 0) {                    \
+        printf("[W]File: %s Line: %d EXPECT: %s ACTUAL: %s\n",       \
+                __FILE__, __LINE__, (a), (b));                       \
+        __ct_add_failed_test(__func__);                              \
+        return;                                                      \
+    }                                                                \
 }while(0)
 
 #define ASSERT_STRCASENEQ(a, b) do{                                  \
-    EXPECT_STRNEQ(a, b);                                             \
-    return;                                                          \
+    if(strncasecmp((a), (b), strlen(a)) == 0) {                      \
+        printf("[W]File: %s Line: %d EXPECT: %s != %s ACTUAL: %s == %s\n",\
+                __FILE__, __LINE__, (a), (b), (a), (b));             \
+            __ct_add_failed_test(__func__);                          \
+        return;                                                      \
+    }                                                                \
 }while(0)
 
 
 #define ASSERT_BINEQ(a, b, s) do{                                    \
-    EXPECT_BINEQ(a, b, s);                                           \
-    return;                                                          \
+    if(memcmp((a), (b), (s)) != 0) {                                 \
+        char hex[(s)*2 + 2 + 1] = {0}; /*new feature*/               \
+        printf("[W]File: %s Line: %d EXPECT: %s == %s ACTUAL: %s != %s\n",\
+                __FILE__, __LINE__,                                  \
+                __ct_hex_dump((a), (s), hex), __ct_hex_dump((b), (s), hex),\
+                __ct_hex_dump((a), (s), hex), __ct_hex_dump((b), (s), hex));\
+        __ct_add_failed_test(__func__);                              \
+        return;                                                      \
+    }                                                                \
 }while(0)
 
 #define ASSERT_BINNEQ(a, b, s) do{                                   \
-    EXPECT_BINNEQ(a, b, s);                                          \
-    return;                                                          \
+    if(memcmp((a), (b), (s)) == 0) {                                 \
+        char hex[(s)*2 + 2 + 1] = {0}; /*new feature*/               \
+        printf("[W]File: %s Line: %d EXPECT: %s != %s ACTUAL: %s == %s\n",\
+                __FILE__, __LINE__,                                  \
+                __ct_hex_dump((a), (s), hex), __ct_hex_dump((b), (s), hex),\
+                __ct_hex_dump((a), (s), hex), __ct_hex_dump((b), (s), hex));\
+        __ct_add_failed_test(__func__);                              \
+        return;                                                      \
+    }                                                                \
 }while(0)
 
 
 #define ASSERT_TRUE(a) do{                                           \
-    EXPECT_TRUE(a);                                                  \
-    return;                                                          \
+    if(!((int)(a))){                                                 \
+        printf("[W]File: %s Line: %d EXPECT: TRUE ACTUAL: FALSE\n",  \
+                __FILE__, __LINE__);                                 \
+        __ct_add_failed_test(__func__);                              \
+        return;                                                      \
+    }                                                                \
 }while(0)
 
 #define ASSERT_FALSE(a) do{                                          \
-    EXPECT_FALSE(a);                                                 \
-    return;                                                          \
+    if(!!((int)a)){                                                  \
+        printf("[W]File: %s Line: %d EXPECT: FALSE ACTUAL: TRUE\n",  \
+                __FILE__, __LINE__);                                 \
+        __ct_add_failed_test(__func__);                              \
+        return;                                                      \
+    }                                                                \
 }while(0)
 
 

@@ -42,13 +42,14 @@ do{                                                                  \
         log_reg_callback(lvl, init_fun, init_args,                   \
                 log_fun, log_args, uninit_fun, uninit_args)
 
-#define LOG_INITIALIZE() log_initialize()
 #define LOG_INITIALIZE_DEFAULT(con_lvl, file_lvl, file_path,         \
             file_prefix, buf_size, sw_time, sw_size)                 \
         log_initialize_default(con_lvl, file_lvl, file_path,         \
                 file_prefix, buf_size, sw_time, sw_size)
 
+#define LOG_START()  log_start()
 #define LOG_FINISH() log_finish()
+#define LOG_FLUSH()  log_flush()
 
 #define LOG_FAIL                             -1
 #define LOG_SUCCESS                           0
@@ -66,10 +67,9 @@ enum LogLevel
 
 
 typedef int (*log_callback_int_t)(void* args);
-typedef int (*log_callback_log_t)(int loglvl, int reqlvl,
-        const char* format,
-        va_list ap, void* args);
+typedef int (*log_callback_log_t)(const char* log, int len, void* args);
 typedef int (*log_callback_uninit_t)(void* args);
+typedef int (*log_callback_flush_t)(void* args);
 
 /* log callback function
  * lvl           trace level
@@ -81,12 +81,13 @@ typedef int (*log_callback_uninit_t)(void* args);
  * uninit_args   uninit function arguments
  */
 int log_reg_callback(int lvl,
-        log_callback_int_t init_cb, void* init_args,
-        log_callback_log_t log_cb, void* log_args,
-        log_callback_uninit_t uninit_cb, void* uninit_args);
+        log_callback_int_t init_cb,
+        log_callback_log_t log_cb,
+        log_callback_uninit_t uninit_cb,
+        log_callback_flush_t flush_cb,
+        void* args);
 
 
-int log_initilize();
 /* log_initialize_default
  * con_lvl     console appender trace log level
  * file_lvl    file appender trace log level
@@ -99,17 +100,23 @@ int log_initialize_default(int con_lvl, int file_lvl,
         char* file_path, char* prefix, int buf_size,
         int sw_time, int sw_size);
 
+int log_initialize_console(int con_lvl);
+int log_initialize_file(int file_lvl,
+        char* file_path, char* prefix, int buf_size,
+        int sw_time, int sw_size);
+
 int log_start();
 int log_finish();
 
 void log_clearup();
+int log_get_level(const char* lvl);
+
+void log_flush();
 
 void log_debug(const char* format, ...);
 void log_info (const char* format, ...);
 void log_warn (const char* format, ...);
 void log_error(const char* format, ...);
 void log_fatal(const char* format, ...);
-
-int log_get_level(const char* lvl);
 
 #endif /* __LOG_H__ */

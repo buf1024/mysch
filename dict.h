@@ -94,9 +94,6 @@ typedef struct dict_iterator {
 #define dict_is_rehashing(ht) ((ht)->rehashidx != -1)
 
 /* API */
-void *alloc_key(dict *d, int size);
-void *alloc_val(dict *d, int size);
-
 dict *dict_create(void *priv_data_ptr);
 int dict_expand(dict *d, unsigned long size);
 int dict_add(dict *d, void *key, int keylen, void *val, int vallen);

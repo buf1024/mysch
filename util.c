@@ -47,65 +47,13 @@ sigfunc* set_signal(int signo, sigfunc* func, int interupt)
 
 int make_daemon()
 {
-
-    int i, fd0, fd1, fd2;
-    pid_t pid;
-    struct rlimit rl;
-    struct sigaction sa;
-    /*
-     * Clear file creation mask.
-     */
-    umask(0);
-
-    /*
-     * Get maximum number of file descriptors.
-     */
-    if (getrlimit(RLIMIT_NOFILE, &rl) < 0)
-        return -1;
-
-    /*
-     * Become a session leader to lose controlling TTY.
-     */
-    if ((pid = fork()) < 0)
-        return -1;
-    else if (pid != 0) /* parent */
+    if (fork() > 0) {
         exit(0);
+    }
     setsid();
-
-    /*
-     * Ensure future opens won't allocate controlling TTYs.
-     */
-    sa.sa_handler = SIG_IGN;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
-    if (sigaction(SIGHUP, &sa, NULL ) < 0)
-        return -1;
-    if ((pid = fork()) < 0)
-        return -1;
-    else if (pid != 0) /* parent */
+    if (fork() > 0) {
         exit(0);
-
-    /*
-     * Change the current working directory to the root so
-     * we won't prevent file systems from being unmounted.
-     */
-    if (chdir("/") < 0)
-        return -1;
-
-    /*
-     * Close all open file descriptors.
-     */
-    if (rl.rlim_max == RLIM_INFINITY )
-        rl.rlim_max = 1024;
-    for (i = 0; i < rl.rlim_max; i++)
-        close(i);
-
-    /*
-     * Attach file descriptors 0, 1, and 2 to /dev/null.
-     */
-    fd0 = open("/dev/null", O_RDWR);
-    fd1 = dup(0);
-    fd2 = dup(0);
+    }
 
     return 0;
 }
@@ -183,8 +131,14 @@ int runas(const char* grp, const char* user)
         return -1;
     }
 
-    setuid(passwd->pw_uid);
-    setgid(group->gr_gid);
+    if(setuid(passwd->pw_uid) != 0) {
+        fprintf(stderr, "setuid failed: %s\n", strerror(errno));
+        return -1;
+    }
+    if(setgid(group->gr_gid) != 0){
+        fprintf(stderr, "setgid failed: %s\n", strerror(errno));
+        return -1;
+    }
 
     return 0;
 }
@@ -508,14 +462,14 @@ const char* trim_right(const char* text, const char* needle, char* dest, int siz
 
 const char* trim(const char* text, const char* needle, char* dest, int size)
 {
+    char tmp[size];
+    memset(tmp, 0, size);
 
-    if(trim_left(text, needle, dest, size) == NULL) {
+    if(trim_left(text, needle, tmp, size) == NULL) {
         return NULL;
     }
 
-    int len = strlen(dest);
-
-    if(trim_right(text, needle, dest + len, size - len) == NULL) {
+    if(trim_right(tmp, needle, dest, size) == NULL) {
         return NULL;
     }
     return dest;

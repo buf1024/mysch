@@ -8,62 +8,27 @@
 #ifndef __MYSCH_H__
 #define __MYSCH_H__
 
-#include "myqueue.h"
-#include "dict.h"
+#include "mysch_struct.h"
 
-#define REGISTER_SIGNAL(signo, func, interupt)            \
-    do {                                                  \
-        if(set_signal(signo, func, interupt) == SIG_ERR){ \
-            printf("register signal %d failed:%s\n",      \
-                    signo, strerror(errno));              \
-            return -1;                                    \
-        }                                                 \
-    }while(0)
+int reg_sign();
 
-#define READ_CONF_INT_MUST(s, k, v)                       \
-    do{                                                   \
-        const char* t = ini_get_val(s, k);                \
-        if(NULL == t){                                    \
-            printf("fail to obtain configuration item."   \
-              " section: %s, item: %s\n", s->key, k);     \
-            return -1;                                    \
-        }else{                                            \
-            v = atoi(t);                                  \
-        }                                                 \
-    }while(0)
+int judge_condition(prog_t* prog);
+int build_condition(prog_t* prog, const char* cond);
+void handle_sigchild();
+void handle_sigusr1();
 
-#define READ_CONF_STR_MUST(s, k, v)                       \
-    do{                                                   \
-        const char* t = ini_get_val(s, k);                \
-        if(NULL == t){                                    \
-            printf("fail to obtain configuration item."   \
-              " section: %s, item: %s\n", s->key, k);     \
-            return -1;                                    \
-        }else{                                            \
-            /*必须确保V比T空间大*/                           \
-            strcpy(v, t);                                 \
-        }                                                 \
-    }while(0)
+void clean_proccess();
 
+int reg_sign();
+int init_context(sch_info_t* info);
+void uninit_context(sch_info_t* info);
 
-typedef struct mprog_s mprog_t;
+int load_conf(const char* conf, int reload);
+void usage();
 
-struct mprog_s
-{
-    char command[256];
-    char group[128];
-    char user[64];
+int mytask();
 
-    int keepalive;
-    int waitfinish;
-};
+int run_prog(prog_t* prog);
 
-typedef struct sch_info_s sch_info_t;
-
-struct sch_info_s
-{
-    list_t* progq;
-    dict* waitd;
-};
 
 #endif /* __MYSCH_H__ */
