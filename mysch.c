@@ -536,15 +536,20 @@ int update_pid(prog_t* prog)
 {
     int ret = 0;
     if(!prog->update_pid) {
-        pid_t pid;
-        if(read_pid_file(&pid, prog->pid_file) == 0) {
-            LOG_INFO("update pid from %d to %d\n",
-                    prog->pid, pid);
-            prog->pid = pid;
-        }else{
-            LOG_WARN("read_pid_file failed, pidfile = %s, error  = %s\n",
-                    prog->pid_file, strerror(errno));
-            ret = -1;
+        if (prog->pid_file[0] != 0) {
+            pid_t pid;
+            if (read_pid_file(&pid, prog->pid_file) == 0) {
+                if (kill(pid, 0) == 0) {
+                    LOG_INFO("update pid from %d to %d\n", prog->pid, pid);
+
+                    prog->pid = pid;
+                    prog->update_pid = 1;
+                }
+            } else {
+                LOG_WARN("read_pid_file failed, pidfile = %s, error  = %s\n",
+                        prog->pid_file, strerror(errno));
+                ret = -1;
+            }
         }
     }
     return ret;
@@ -607,6 +612,7 @@ int mytask()
                     if (p->pid > 0) {
                         if(update_pid(p) != 0) {
                             LOG_ERROR("update_pid failed.\n");
+                            continue;
                         }
                         if (kill(p->pid, 0) == 0) {
                             // 程序正运行
@@ -618,6 +624,7 @@ int mytask()
                     if (p->pid > 0) {
                         if (update_pid(p) != 0) {
                             LOG_ERROR("update_pid failed.\n");
+                            continue;
                         }
                         if (kill(p->pid, 0) == 0) {
                             // 程序正运行,干掉它
