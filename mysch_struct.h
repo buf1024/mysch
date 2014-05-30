@@ -99,6 +99,7 @@ struct cond_s
 struct sch_info_s
 {
     int sleep_time;
+    int kill_flag;
     char conf[256];
     prog_group_t* progq;
     prog_wait_t* waitq;

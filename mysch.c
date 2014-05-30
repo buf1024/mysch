@@ -159,6 +159,7 @@ int load_conf(sch_info_t* info, int flag)
     }
 
     READ_CONF_INT_MUST(sec, "SLEEP_TIME", info->sleep_time);
+    READ_CONF_INT_MUST(sec, "KILL_CHILD_FLAG", info->kill_flag);
 
     {
         char prog_list[2048] = { 0 };
@@ -168,11 +169,7 @@ int load_conf(sch_info_t* info, int flag)
 
         num = split(prog_list, '|', (char **)progs, 64, 128);
         if(num <= 0) {
-            if(flag != LOAD_CONF_TEST) {
-                LOG_ERROR("split %s failed.\n", prog_list);
-            }else{
-                printf("split %s failed.\n", prog_list);
-            }
+            LOG_ERROR("split %s failed.\n", prog_list);
             ini_destroy(ini);
             log_finish();
             return -1;
@@ -201,11 +198,7 @@ int load_conf(sch_info_t* info, int flag)
 
             ini_sec_t* ssec = ini_get_sec(ini, progs[i]);
             if (ssec == NULL ) {
-                if (flag != LOAD_CONF_TEST) {
-                    LOG_ERROR("get section %s failed.\n", progs[i]);
-                } else {
-                    printf("get section %s failed.\n", progs[i]);
-                }
+                LOG_ERROR("get section %s failed.\n", progs[i]);
                 ini_destroy(ini);
                 log_finish();
                 return -1;
@@ -224,11 +217,7 @@ int load_conf(sch_info_t* info, int flag)
             int ncmd = 0;
             ncmd = split(run_cmd, ' ',  (char**)prog->argv, 128, 16);
             if(ncmd <= 0){
-                if (flag != LOAD_CONF_TEST) {
-                    LOG_ERROR("split cmd %s failed\n", run_cmd);
-                } else {
-                    printf("split cmd %s failed\n", run_cmd);
-                }
+                LOG_ERROR("split cmd %s failed\n", run_cmd);
                 free(prog);
 
                 ini_destroy(ini);
@@ -243,11 +232,7 @@ int load_conf(sch_info_t* info, int flag)
                 READ_CONF_STR_MUST(ssec, "RUN_TIME", cond);
 
                 if(build_condition(prog, cond) != 0) {
-                    if (flag != LOAD_CONF_TEST) {
-                        LOG_ERROR("build_condition failed. condition=%s\n", cond);
-                    } else {
-                        printf("build_condition failed. condition=%s\n", cond);
-                    }
+                    LOG_ERROR("build_condition failed. condition=%s\n", cond);
                     free(prog);
 
                     ini_destroy(ini);
@@ -281,11 +266,7 @@ int load_conf(sch_info_t* info, int flag)
         list_node* node = NULL;
         while((node = list_next(it))) {
             prog_t* lp = list_node_value(node);
-            if (flag != LOAD_CONF_TEST) {
-                LOG_DEBUG("prog = %s\n", lp->cmd);
-            } else {
-                printf("prog = %s\n", lp->cmd);
-            }
+            LOG_DEBUG("prog = %s\n", lp->cmd);
         }
         list_release_iterator(it);
     }
@@ -619,7 +600,7 @@ int mytask()
         list_release_iterator(it);
     }
 
-    clean_proccess(0);
+    clean_proccess(g_info.kill_flag);
 
     return 0;
 }

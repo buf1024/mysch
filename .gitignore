@@ -1,5 +1,7 @@
 *~
-*txt
+*.txt
+*.log
+*.tmp
 bin
 mysch
 # Object files
