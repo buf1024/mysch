@@ -542,7 +542,7 @@ int update_pid(prog_t* prog)
         }
         prog->update_pid = 1;
     }
-    return 0;
+    return ret;
 }
 
 int mytask()
