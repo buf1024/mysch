@@ -26,7 +26,7 @@
 
 enum {
     MAX_PATH_LEN = 256,
-    SEC_1900_1970 = 2208988800,
+    SEC_1900_1970 = 2208988800UL,
 };
 
 sigfunc* set_signal(int signo, sigfunc* func, int interupt)
