@@ -282,6 +282,7 @@ void usage()
     printf("  -c config    load configuration file.\n");
     printf("  -e           don't run as daemon process.\n");
     printf("  -t           test configuration file.\n");
+    printf("  -s           stop the program.\n");
     printf("  -h           show this help message.\n");
 }
 
@@ -611,7 +612,7 @@ int main(int argc, char* argv[])
 {
     extern char *optarg;
     int optch;
-    char optstring[] = "c:hte";
+    char optstring[] = "c:htse";
 
     int test = 0;
     int daemon = 1;
@@ -627,6 +628,9 @@ int main(int argc, char* argv[])
             break;
         case 'e':
             daemon = 0;
+            break;
+        case 's':
+            g_term = 1;
             break;
         case 'c':
             strcpy(g_info.conf, optarg);
