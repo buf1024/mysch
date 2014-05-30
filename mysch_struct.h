@@ -77,6 +77,8 @@ typedef struct dict   prog_wait_t;
 struct prog_s
 {
     pid_t pid;
+    int update_pid;
+    char pid_file[256];
     char cmd[256];
     int argc;
     char argv[16][128];
@@ -100,7 +102,10 @@ struct sch_info_s
 {
     int sleep_time;
     int kill_flag;
+    char pid_file[256];
+    char run_user[64];
     char conf[256];
+
     prog_group_t* progq;
     prog_wait_t* waitq;
 };

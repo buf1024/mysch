@@ -26,6 +26,9 @@ int is_prog_runas_root();
 int is_prog_running(const char* name);
 int runas(const char* user);
 
+int write_pid_file(const char* file);
+int read_pid_file(pid_t* pid, const char* file);
+
 time_t get_1970_sec();
 time_t get_1970_usec();
 time_t get_1970_ms();

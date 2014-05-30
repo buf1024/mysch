@@ -160,6 +160,8 @@ int load_conf(sch_info_t* info, int flag)
 
     READ_CONF_INT_MUST(sec, "SLEEP_TIME", info->sleep_time);
     READ_CONF_INT_MUST(sec, "KILL_CHILD_FLAG", info->kill_flag);
+    READ_CONF_STR_OPT(sec, "PID_FILE", info->pid_file);
+    READ_CONF_STR_OPT(sec, "RUN_USER", info->run_user);
 
     {
         char prog_list[2048] = { 0 };
@@ -239,6 +241,7 @@ int load_conf(sch_info_t* info, int flag)
                     log_finish();
                     return -1;
                 }
+                READ_CONF_STR_OPT(ssec, "RUN_PID_FILE", prog->pid_file);
             }
 
 
@@ -508,6 +511,7 @@ int run_prog(prog_t* prog)
         exit(-1);
     }else{
         prog->pid = p;
+        prog->update_pid = 0;
 
         pid_t* dp = (pid_t*)malloc(sizeof(dp));
         prog_t** dpp = (prog_t**)malloc(sizeof(dpp));
@@ -518,6 +522,25 @@ int run_prog(prog_t* prog)
         dict_add(g_info.waitq, dp, sizeof(*dp), dpp, sizeof(*dpp));
 
         LOG_DEBUG("new proccess: %d\n", *dp);
+    }
+    return 0;
+}
+
+int update_pid(prog_t* prog)
+{
+    int ret = 0;
+    if(!prog->update_pid) {
+        pid_t pid;
+        if(read_pid_file(&pid, prog->pid_file) == 0) {
+            LOG_INFO("update pid from %d to %d\n",
+                    prog->pid, pid);
+            prog->pid = pid;
+        }else{
+            LOG_WARN("read_pid_file failed, pidfile = %s\n",
+                    prog->pid_file);
+            ret = -1;
+        }
+        prog->update_pid = 1;
     }
     return 0;
 }
@@ -577,6 +600,9 @@ int mytask()
 
                 if (judge_condition(p)) {
                     if (p->pid > 0) {
+                        if(update_pid(p) != 0) {
+                            LOG_ERROR("update_pid failed.\n");
+                        }
                         if (kill(p->pid, 0) == 0) {
                             // 程序正运行
                             continue;
@@ -585,6 +611,9 @@ int mytask()
                     run_prog(p);
                 }else{
                     if (p->pid > 0) {
+                        if (update_pid(p) != 0) {
+                            LOG_ERROR("update_pid failed.\n");
+                        }
                         if (kill(p->pid, 0) == 0) {
                             // 程序正运行,干掉它
                             LOG_INFO("killing %d\n", p->pid);
@@ -667,6 +696,29 @@ int main(int argc, char* argv[])
     if(load_conf(&g_info, LOAD_CONF_NONE) != 0) {
         printf("load_conf failed.\n");
         uninit_context(&g_info);
+        log_finish();
+        exit(-1);
+    }
+
+    if(daemon) {
+        if(g_info.pid_file[0] == 0) {
+            LOG_ERROR("pid file is empty.\n");
+            uninit_context(&g_info);
+            log_finish();
+            exit(-1);
+        }
+        if (write_pid_file(g_info.pid_file) != 0) {
+            LOG_ERROR("write_pid_file failed.\n");
+            uninit_context(&g_info);
+            log_finish();
+            exit(-1);
+        }
+    }
+
+    if(runas(g_info.run_user) != 0) {
+        LOG_ERROR("runas %s failed.\n", g_info.run_user);
+        uninit_context(&g_info);
+        log_finish();
         exit(-1);
     }
 

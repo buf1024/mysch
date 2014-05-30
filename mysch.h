@@ -35,6 +35,7 @@ void usage();
 int mytask();
 
 int run_prog(prog_t* prog);
+int update_pid(prog_t* prog);
 
 
 #endif /* __MYSCH_H__ */

@@ -142,6 +142,33 @@ int runas(const char* user)
     return 0;
 }
 
+int write_pid_file(const char* file)
+{
+    FILE* fp = fopen(file, "w");
+    if(fp == NULL){
+        return -1;
+    }
+
+    fprintf(fp, "%d", getpid());
+
+    fclose(fp);
+
+    return 0;
+}
+int read_pid_file(pid_t* pid, const char* file)
+{
+    FILE* fp = fopen(file, "r");
+    if(fp == NULL){
+        return -1;
+    }
+
+    fscanf(fp, "%d", pid);
+
+    fclose(fp);
+
+    return 0;
+}
+
 time_t get_1970_sec()
 {
     return time(NULL);

@@ -2,6 +2,7 @@
 *.txt
 *.log
 *.tmp
+*.pid
 bin
 mysch
 # Object files
