@@ -280,6 +280,8 @@ void usage()
     printf("./myshc [-c config] [-h]\n");
     printf("--simple program scheduler\n\n");
     printf("  -c config    load configuration file.\n");
+    printf("  -e           don't run as daemon process.\n");
+    printf("  -t           test configuration file.\n");
     printf("  -h           show this help message.\n");
 }
 
