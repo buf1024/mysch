@@ -409,7 +409,7 @@ int log_file_init_callback_fun(void* args)
     gettimeofday(&tv, NULL);
     struct tm* tm = localtime(&tv.tv_sec);
 
-    snprintf(_file_log_ctx.name, LOG_DEFAULT_MAX_PATH, "%s_%d_%04d%02d%2d_%d",
+    snprintf(_file_log_ctx.name, LOG_DEFAULT_MAX_PATH, "%s_%d_%04d%02d%02d_%d",
             _file_log_ctx.prefix, pid,
             tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday,
             _file_log_ctx.file_count);
