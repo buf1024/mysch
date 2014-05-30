@@ -80,11 +80,13 @@ struct prog_s
     char cmd[256];
     int argc;
     char argv[16][128];
-    char group[128];
     char user[64];
 
     int flag;
     cond_group_t* cond;
+
+    int status;
+    long time;
 };
 
 struct cond_s
@@ -96,6 +98,8 @@ struct cond_s
 
 struct sch_info_s
 {
+    int sleep_time;
+    char conf[256];
     prog_group_t* progq;
     prog_wait_t* waitq;
 };

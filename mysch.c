@@ -27,11 +27,7 @@ static int g_usr1 = 0;
 static int g_usr2 = 0;
 static int g_chld = 0;
 
-int g_sleep_time = 0;
 sch_info_t g_info = { 0 };
-
-
-char* g_conf = NULL;
 
 static void sigterm(int signo)
 {
@@ -96,14 +92,11 @@ void uninit_context(sch_info_t* info)
     }
 }
 
-int load_conf(const char* conf, int reload)
+int load_conf(sch_info_t* info, int flag)
 {
     int ret = 0;
-    if (NULL == conf) {
-        return -1;
-    }
     ini_conf_t* ini = ini_create();
-    ret = ini_load(ini, conf);
+    ret = ini_load(ini, info->conf);
     if (ret != 0) {
         ini_destroy(ini);
         printf("ini_load failed.\n");
@@ -139,30 +132,33 @@ int load_conf(const char* conf, int reload)
             log_sw_time %= 86400;
         }
 
-        if(reload) {
-            log_finish();
-        }
+        if (flag != LOAD_CONF_TEST) {
+            if (flag == LOAD_CONF_RELOAD) {
+                log_finish();
+                log_clearup();
+            }
 
-        int lvl = log_get_level(file_level);
+            int lvl = log_get_level(file_level);
 
-        if(log_initialize_console(lvl) != 0) {
-            printf("log_initialize_console failed.\n");
-            return -1;
-        }
+            if (log_initialize_console(lvl) != 0) {
+                printf("log_initialize_console failed.\n");
+                return -1;
+            }
 
-        if(log_initialize_file(lvl,
-                log_path, log_header, log_buffer, log_sw_time, -1) != 0) {
-            printf("log_initialize_file failed.\n");
-            return -1;
+            if (log_initialize_file(lvl, log_path, log_header, log_buffer,
+                    log_sw_time, -1) != 0) {
+                printf("log_initialize_file failed.\n");
+                return -1;
+            }
+            if (log_start() != 0) {
+                printf("log_initilize failed.\n");
+                return -1;
+            }
+            LOG_INFO("logger is ready.\n");
         }
-        if(log_start() != 0) {
-            printf("log_initilize failed.\n");
-            return -1;
-        }
-        LOG_INFO("logger is ready.\n");
     }
 
-    READ_CONF_INT_MUST(sec, "SLEEP_TIME", g_sleep_time);
+    READ_CONF_INT_MUST(sec, "SLEEP_TIME", info->sleep_time);
 
     {
         char prog_list[2048] = { 0 };
@@ -172,15 +168,19 @@ int load_conf(const char* conf, int reload)
 
         num = split(prog_list, '|', (char **)progs, 64, 128);
         if(num <= 0) {
-            LOG_ERROR("split %s failed.\n", prog_list);
+            if(flag != LOAD_CONF_TEST) {
+                LOG_ERROR("split %s failed.\n", prog_list);
+            }else{
+                printf("split %s failed.\n", prog_list);
+            }
             ini_destroy(ini);
             log_finish();
             return -1;
         }
 
-        if(reload) {
-            if(g_info.progq){
-                list_iter* it = list_get_iterator(g_info.progq, AL_START_HEAD);
+        if(flag == LOAD_CONF_RELOAD) {
+            if(info->progq){
+                list_iter* it = list_get_iterator(info->progq, AL_START_HEAD);
                 list_node* n = NULL;
                 while((n = list_next(it)) != NULL) {
                     prog_t* p = list_node_value(n);
@@ -190,18 +190,22 @@ int load_conf(const char* conf, int reload)
                 }
 
                 list_release_iterator(it);
-                list_release(g_info.progq, AL_FREE);
+                list_release(info->progq, AL_FREE);
             }
 
-            g_info.progq = list_create();
+            info->progq = list_create();
         }
 
         int i = 0;
         for(i=0; i<num; i++) {
 
             ini_sec_t* ssec = ini_get_sec(ini, progs[i]);
-            if(ssec == NULL) {
-                LOG_ERROR("get section %s failed.\n", progs[i]);
+            if (ssec == NULL ) {
+                if (flag != LOAD_CONF_TEST) {
+                    LOG_ERROR("get section %s failed.\n", progs[i]);
+                } else {
+                    printf("get section %s failed.\n", progs[i]);
+                }
                 ini_destroy(ini);
                 log_finish();
                 return -1;
@@ -214,14 +218,17 @@ int load_conf(const char* conf, int reload)
             char run_cmd[1024] = {0};
 
             READ_CONF_STR_MUST(ssec, "RUN_COMMAND", run_cmd);
-            READ_CONF_STR_MUST(ssec, "RUN_GROUP", prog->group);
             READ_CONF_STR_MUST(ssec, "RUN_USER", prog->user);
             READ_CONF_INT_MUST(ssec, "RUN_FLAG", prog->flag);
 
             int ncmd = 0;
             ncmd = split(run_cmd, ' ',  (char**)prog->argv, 128, 16);
             if(ncmd <= 0){
-                LOG_ERROR("split cmd %s failed\n", prog->argv);
+                if (flag != LOAD_CONF_TEST) {
+                    LOG_ERROR("split cmd %s failed\n", run_cmd);
+                } else {
+                    printf("split cmd %s failed\n", run_cmd);
+                }
                 free(prog);
 
                 ini_destroy(ini);
@@ -236,7 +243,11 @@ int load_conf(const char* conf, int reload)
                 READ_CONF_STR_MUST(ssec, "RUN_TIME", cond);
 
                 if(build_condition(prog, cond) != 0) {
-                    LOG_ERROR("build_condition failed. condition=%s\n", cond);
+                    if (flag != LOAD_CONF_TEST) {
+                        LOG_ERROR("build_condition failed. condition=%s\n", cond);
+                    } else {
+                        printf("build_condition failed. condition=%s\n", cond);
+                    }
                     free(prog);
 
                     ini_destroy(ini);
@@ -246,7 +257,7 @@ int load_conf(const char* conf, int reload)
             }
 
 
-            list_iter* it = list_get_iterator(g_info.progq, AL_START_HEAD);
+            list_iter* it = list_get_iterator(info->progq, AL_START_HEAD);
             list_node* node = NULL;
             while((node = list_next(it))) {
                 prog_t* lp = list_node_value(node);
@@ -255,22 +266,26 @@ int load_conf(const char* conf, int reload)
                 }
             }
             if(node == NULL) {
-                if(list_length(g_info.progq) == 0) {
-                    list_add_node_head(g_info.progq, prog);
+                if(list_length(info->progq) == 0) {
+                    list_add_node_head(info->progq, prog);
                 }else{
-                    list_add_node_tail(g_info.progq, prog);
+                    list_add_node_tail(info->progq, prog);
                 }
             }else{
-                list_insert_node(g_info.progq, node, prog, 0);
+                list_insert_node(info->progq, node, prog, 0);
             }
             list_release_iterator(it);
         }
 
-        list_iter* it = list_get_iterator(g_info.progq, AL_START_HEAD);
+        list_iter* it = list_get_iterator(info->progq, AL_START_HEAD);
         list_node* node = NULL;
         while((node = list_next(it))) {
             prog_t* lp = list_node_value(node);
-            LOG_DEBUG("prog = %s\n", lp->cmd);
+            if (flag != LOAD_CONF_TEST) {
+                LOG_DEBUG("prog = %s\n", lp->cmd);
+            } else {
+                printf("prog = %s\n", lp->cmd);
+            }
         }
         list_release_iterator(it);
     }
@@ -297,7 +312,10 @@ int judge_condition(prog_t* prog)
     gettimeofday(&tv, NULL);
     struct tm* tm = localtime(&tv.tv_sec);
 
-    int wday = tm->tm_wday + 1;
+    int wday = tm->tm_wday;
+    if(wday == 0) {
+        wday = 7; // 星期天
+    }
     int sec = tm->tm_hour * 3600 + tm->tm_min * 60 + tm->tm_sec;
 
     list_iter* it = list_get_iterator(prog->cond, AL_START_HEAD);
@@ -414,7 +432,15 @@ int build_condition(prog_t* prog, const char* cond)
 void handle_sigchild()
 {
     pid_t pid;
-    while ((pid = waitpid(-1, NULL, WNOHANG)) > 0) {
+    int status = 0;
+    while ((pid = waitpid(-1, &status, WNOHANG)) > 0) {
+        prog_t** pp = (prog_t**)dict_fetch_value(g_info.waitq,
+                &pid, sizeof(pid));
+        prog_t* p = *pp;
+
+        p->status = status;
+        p->time = time(NULL);
+
         if(dict_delete(g_info.waitq, &pid, sizeof(pid))!= DICT_OK) {
             LOG_ERROR("dict_delete failed. pid = %d\n", pid);
         }
@@ -425,28 +451,34 @@ void handle_sigusr1()
 {
     int ret = 0;
 
-    ret = load_conf(g_conf, 1);
+    ret = load_conf(&g_info, LOAD_CONF_RELOAD);
     if(ret != 0) {
         LOG_ERROR("reload config failed. exiting...\n");
     }else{
-        LOG_ERROR("prepare for restart program. killing...\n");
+        LOG_INFO("prepare for restart program. killing...\n");
     }
 
-    clean_proccess();
+    clean_proccess(1);
 
     g_usr1 = 0;
 }
 
-void clean_proccess()
+void clean_proccess(int killflag)
 {
     dict_iterator* it = dict_get_iterator(g_info.waitq);
     dict_entry* de = NULL;
     while((de = dict_next(it)) != NULL) {
-        pid_t* p = (pid_t*)dict_get_entry_key(de);
-        LOG_INFO("killing %d\n", *p);
-        kill(*p, SIGTERM);
-        waitpid(*p, NULL, 0);
-        LOG_INFO("%d killed\n", *p);
+        pid_t* p = (pid_t*) dict_get_entry_key(de);
+        if (killflag) {
+            LOG_INFO("killing %d\n", *p);
+            kill(*p, SIGTERM);
+            waitpid(*p, NULL, 0);
+            LOG_INFO("%d killed\n", *p);
+        }else{
+            prog_t* prog = *(prog_t**)dict_get_entry_val(de);
+            LOG_INFO("program %s continue running even i die, pid: %d\n",
+                    prog->cmd, *p);
+        }
 
         dict_delete(g_info.waitq, p, sizeof(*p));
     }
@@ -456,6 +488,19 @@ void clean_proccess()
 
 int run_prog(prog_t* prog)
 {
+
+    if(prog->flag > 0 &&
+            prog->time != 0) {
+        // 防止死循环，常驻进程启动不成功需等待
+        time_t now = time(NULL);
+        time_t diff = now - prog->time;
+        if(diff <= g_info.sleep_time) {
+            LOG_INFO("pause start program %s, timediff %d\n",
+                    prog->cmd, diff);
+            return -1;
+        }
+    }
+
     LOG_INFO("run program: %s\n", prog->cmd);
     int i = 0;
     for(i=0; i<prog->argc; i++) {
@@ -463,7 +508,7 @@ int run_prog(prog_t* prog)
     }
     pid_t p = fork();
     if(p == 0){
-        int r = runas(prog->group, prog->user);
+        int r = runas(prog->user);
         if(r == 0) {
             char* argv[prog->argc + 1];
             for(r = 0; r < prog->argc; r++) {
@@ -475,8 +520,9 @@ int run_prog(prog_t* prog)
                         prog->cmd, strerror(errno));
                 exit(-1);
             }
+            exit(0);
         }
-        exit(0);
+        exit(-1);
     }else{
         prog->pid = p;
 
@@ -496,7 +542,7 @@ int run_prog(prog_t* prog)
 int mytask()
 {
     while(1) {
-        sleep(g_sleep_time);
+        sleep(g_info.sleep_time);
 
         if(g_usr1) {
             LOG_DEBUG("catch usr1\n");
@@ -505,6 +551,7 @@ int mytask()
         if(g_usr2) {
             LOG_DEBUG("catch usr2\n");
             log_flush();
+            g_usr2 = 0;
         }
         if(g_chld) {
             LOG_DEBUG("catch child\n");
@@ -544,15 +591,13 @@ int mytask()
                     // 等待程序结束
                     continue;
                 }
+
                 if (judge_condition(p)) {
-                    if (p->pid == 0) {
-                        // 启动程序
-                        run_prog(p);
-                        continue;
-                    }
-                    if (kill(p->pid, 0) == 0) {
-                        // 程序正运行
-                        continue;
+                    if (p->pid > 0) {
+                        if (kill(p->pid, 0) == 0) {
+                            // 程序正运行
+                            continue;
+                        }
                     }
                     run_prog(p);
                 }else{
@@ -574,7 +619,7 @@ int mytask()
         list_release_iterator(it);
     }
 
-    clean_proccess();
+    clean_proccess(0);
 
     return 0;
 }
@@ -583,8 +628,10 @@ int main(int argc, char* argv[])
 {
     extern char *optarg;
     int optch;
-    char optstring[] = "c:h";
+    char optstring[] = "c:hte";
 
+    int test = 0;
+    int daemon = 1;
 
     //读取命令行参数
     while ((optch = getopt(argc, argv, optstring)) != -1) {
@@ -592,8 +639,14 @@ int main(int argc, char* argv[])
         case 'h':
             usage();
             exit(0);
+        case 't':
+            test = 1;
+            break;
+        case 'e':
+            daemon = 0;
+            break;
         case 'c':
-            g_conf = optarg;
+            strcpy(g_info.conf, optarg);
             break;
         default:
             usage();
@@ -601,27 +654,38 @@ int main(int argc, char* argv[])
         }
     }
 
-    if (g_conf == NULL || g_conf[0] == 0) {
+    if (g_info.conf[0] == 0) {
         printf("configuration file is empty.\n");
         usage();
         exit(0);
+    }
+
+    if(test) {
+        sch_info_t testinfo = {0};
+        strcpy(testinfo.conf, g_info.conf);
+        init_context(&testinfo);
+        if(load_conf(&testinfo, LOAD_CONF_TEST) == 0) {
+            printf("file syntax is correct.\n");
+        }else{
+            printf("file syntax is incorrect.\n");
+        }
+        uninit_context(&testinfo);
+        exit(0);
+    }
+
+    if(daemon) {
+        make_daemon();
     }
 
     reg_sign();
 
     init_context(&g_info);
 
-    if(load_conf(g_conf, 0) != 0) {
+    if(load_conf(&g_info, LOAD_CONF_NONE) != 0) {
         printf("load_conf failed.\n");
         uninit_context(&g_info);
         exit(-1);
     }
-
-    //make_daemon();
-
-//    while(!g_exit){
-
-  //  }
 
     mytask();
 

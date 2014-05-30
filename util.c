@@ -54,7 +54,6 @@ int make_daemon()
     if (fork() > 0) {
         exit(0);
     }
-
     return 0;
 }
 
@@ -113,7 +112,7 @@ int is_prog_running(const char* name)
     return 0;
 }
 
-int runas(const char* grp, const char* user)
+int runas(const char* user)
 {
     struct passwd* passwd = getpwuid(getuid());
 
@@ -126,19 +125,19 @@ int runas(const char* grp, const char* user)
         return -1;
     }
 
-    struct group* group = getgrnam(grp);
+/*    struct group* group = getgrnam(grp);
     if(group == NULL) {
         return -1;
-    }
+    }*/
 
     if(setuid(passwd->pw_uid) != 0) {
-        fprintf(stderr, "setuid failed: %s\n", strerror(errno));
+        fprintf(stderr, "setuid failed,: %s\n", strerror(errno));
         return -1;
     }
-    if(setgid(group->gr_gid) != 0){
+/*    if(setgid(group->gr_gid) != 0){
         fprintf(stderr, "setgid failed: %s\n", strerror(errno));
         return -1;
-    }
+    }*/
 
     return 0;
 }

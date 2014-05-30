@@ -285,6 +285,8 @@ void log_fatal(const char* format, ...)
 
 int log_finish()
 {
+    log_flush();
+
     pthread_mutex_lock(&_ctx_mutex);
 
     struct call_back* cb = _context.cb;
@@ -511,6 +513,8 @@ int log_file_flush_callback_fun(void* args)
             _file_log_ctx.w_size += fwrite(_file_log_ctx.buf, 1,
                     _file_log_ctx.w_pos, _file_log_ctx.fp);
             _file_log_ctx.w_pos = 0;
+
+            fflush(fp);
         }
     }
     return LOG_SUCCESS;

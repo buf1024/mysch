@@ -24,7 +24,7 @@ sigfunc* set_signal(int signo, sigfunc* func, int interupt);
 int make_daemon();
 int is_prog_runas_root();
 int is_prog_running(const char* name);
-int runas(const char* grp, const char* user);
+int runas(const char* user);
 
 time_t get_1970_sec();
 time_t get_1970_usec();
