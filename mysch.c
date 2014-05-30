@@ -544,6 +544,16 @@ int update_pid(prog_t* prog)
 
                     prog->pid = pid;
                     prog->update_pid = 1;
+
+                    // 新进程信息
+
+                    pid_t* dp = (pid_t*)malloc(sizeof(dp));
+                    prog_t** dpp = (prog_t**)malloc(sizeof(dpp));
+
+                    *dp = pid;
+                    *dpp = prog;
+
+                    dict_add(g_info.waitq, dp, sizeof(*dp), dpp, sizeof(*dpp));
                 }
             } else {
                 LOG_WARN("read_pid_file failed, pidfile = %s, error  = %s\n",
