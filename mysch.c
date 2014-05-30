@@ -110,6 +110,13 @@ int load_conf(sch_info_t* info, int flag)
         return -1;
     }
 
+    READ_CONF_STR_OPT(sec, "RUN_USER", info->run_user);
+
+    if(runas(g_info.run_user) != 0) {
+        printf("runas %s failed.\n", g_info.run_user);
+        return -1;
+    }
+
     {
         char file_level[64] = { 0 };
         char log_path[256] = { 0 };
@@ -161,7 +168,6 @@ int load_conf(sch_info_t* info, int flag)
     READ_CONF_INT_MUST(sec, "SLEEP_TIME", info->sleep_time);
     READ_CONF_INT_MUST(sec, "KILL_CHILD_FLAG", info->kill_flag);
     READ_CONF_STR_OPT(sec, "PID_FILE", info->pid_file);
-    READ_CONF_STR_OPT(sec, "RUN_USER", info->run_user);
 
     {
         char prog_list[2048] = { 0 };
@@ -536,8 +542,8 @@ int update_pid(prog_t* prog)
                     prog->pid, pid);
             prog->pid = pid;
         }else{
-            LOG_WARN("read_pid_file failed, pidfile = %s\n",
-                    prog->pid_file);
+            LOG_WARN("read_pid_file failed, pidfile = %s, error  = %s\n",
+                    prog->pid_file, strerror(errno));
             ret = -1;
         }
     }
@@ -714,12 +720,6 @@ int main(int argc, char* argv[])
         }
     }
 
-    if(runas(g_info.run_user) != 0) {
-        LOG_ERROR("runas %s failed.\n", g_info.run_user);
-        uninit_context(&g_info);
-        log_finish();
-        exit(-1);
-    }
 
     mytask();
 
