@@ -540,7 +540,6 @@ int update_pid(prog_t* prog)
                     prog->pid_file);
             ret = -1;
         }
-        prog->update_pid = 1;
     }
     return ret;
 }
