@@ -86,8 +86,7 @@ int is_prog_running(const char* name)
 
     int len = 0;
     pid_t pid = -1;
-#include <sys/types.h>
-       #include <pwd.h>
+
     if(fcntl(fd, F_SETLK, &lck) < 0){
         len = read(fd, &pid, sizeof(pid_t));
         if(len != sizeof(pid_t)) {
