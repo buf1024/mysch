@@ -20,7 +20,7 @@ TEST(log, log)
     log_finish();
 
     log_initialize_default(LOG_DEBUG, LOG_DEBUG,
-        "./", "test_log_2", 64, -1, 128);
+        "./", "test_log_2", 64, 750, -1);
 
     for (i = 0 ; i < 100; i++) {
         LOG_DEBUG("hello %s\n", "cnb");

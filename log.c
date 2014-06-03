@@ -29,12 +29,15 @@ static int log_file_init_callback_fun(void* args);
 static int log_file_log_callback_fun(const char* log, int len, void* args);
 static int log_file_uninit_callback_fun(void* args);
 static int log_file_flush_callback_fun(void* args);
+static int log_file_switch(void* args);
 
 struct file_log
 {
     char  path[LOG_DEFAULT_MAX_PATH];
     char  prefix[LOG_DEFAULT_MAX_PATH];
     char  name[LOG_DEFAULT_MAX_PATH];
+
+    int   sw_day;
 
     FILE* fp;
     int   file_count;
@@ -374,10 +377,16 @@ int log_console_callback_log(const char* log, int len, void* args)
 int log_file_init_callback_fun(void* args)
 {
     FILE* fp = _file_log_ctx.fp;
+    char* rst = NULL;
+    int rst_size = 0;
     if(fp != NULL){
         if(_file_log_ctx.buf && _file_log_ctx.w_pos > 0) {
-            fwrite(_file_log_ctx.buf, 1,
-                    _file_log_ctx.w_pos, _file_log_ctx.fp);
+            rst_size = _file_log_ctx.w_pos;
+            rst = (char*)malloc(_file_log_ctx.w_pos);
+            if(!rst) {
+                return LOG_FAIL;
+            }
+            memcpy(rst, _file_log_ctx.buf, _file_log_ctx.w_pos);
         }
 
         fclose(fp);
@@ -422,30 +431,17 @@ int log_file_init_callback_fun(void* args)
         return LOG_FAIL;
     }
     _file_log_ctx.fp = fp;
+
+    if(rst) {
+        fwrite(rst, 1, rst_size, _file_log_ctx.fp);
+        free(rst);
+    }
+
     return LOG_SUCCESS;
 }
 
-int log_file_log_callback_fun(const char* log, int len, void* args)
+static int log_file_switch(void* args)
 {
-    FILE* fp = _file_log_ctx.fp;
-    if (fp == NULL ) {
-        return LOG_FAIL;
-    }
-    int m_size = len;
-
-    if (m_size > (_file_log_ctx.buf_size - _file_log_ctx.w_pos)) {
-        if (_file_log_ctx.w_pos > 0) {
-            _file_log_ctx.w_size += fwrite(_file_log_ctx.buf, 1,
-                    _file_log_ctx.w_pos, _file_log_ctx.fp);
-            _file_log_ctx.w_pos = 0;
-        }
-        _file_log_ctx.w_size += fwrite(log, 1, m_size, _file_log_ctx.fp);
-    } else {
-        memcpy(_file_log_ctx.buf + _file_log_ctx.w_pos, log, m_size);
-        _file_log_ctx.w_pos += m_size;
-        _file_log_ctx.w_size += m_size;
-    }
-
     int sw_log = 0;
 
     if (_file_log_ctx.switch_time > 0) {
@@ -453,9 +449,12 @@ int log_file_log_callback_fun(const char* log, int len, void* args)
         gettimeofday(&tv, NULL );
         struct tm* tm = localtime(&tv.tv_sec);
 
-        int seconds = tm->tm_hour * 60 + tm->tm_sec;
-        if (seconds >= _file_log_ctx.switch_time) {
-            sw_log = 1;
+        if(tm->tm_mday != _file_log_ctx.sw_day) {
+            int seconds = tm->tm_hour * 3600 + tm->tm_min * 60 + tm->tm_sec;
+            if (seconds >= _file_log_ctx.switch_time) {
+                sw_log = 1;
+                _file_log_ctx.sw_day = tm->tm_mday;
+            }
         }
     }
     if (!sw_log) {
@@ -470,6 +469,35 @@ int log_file_log_callback_fun(const char* log, int len, void* args)
             return LOG_FAIL;
         }
     }
+
+    return LOG_SUCCESS;
+}
+
+int log_file_log_callback_fun(const char* log, int len, void* args)
+{
+    FILE* fp = _file_log_ctx.fp;
+    if (fp == NULL ) {
+        return LOG_FAIL;
+    }
+
+    if(log_file_switch(args) != LOG_SUCCESS) {
+        return LOG_FAIL;
+    }
+
+    int m_size = len;
+
+    if (m_size > (_file_log_ctx.buf_size - _file_log_ctx.w_pos)) {
+        if (_file_log_ctx.w_pos > 0) {
+            _file_log_ctx.w_size += fwrite(_file_log_ctx.buf, 1,
+                    _file_log_ctx.w_pos, _file_log_ctx.fp);
+            _file_log_ctx.w_pos = 0;
+        }
+        _file_log_ctx.w_size += fwrite(log, 1, m_size, _file_log_ctx.fp);
+    } else {
+        memcpy(_file_log_ctx.buf + _file_log_ctx.w_pos, log, m_size);
+        _file_log_ctx.w_pos += m_size;
+        _file_log_ctx.w_size += m_size;
+    }
     return LOG_SUCCESS;
 }
 int log_file_uninit_callback_fun(void* args)
@@ -477,6 +505,10 @@ int log_file_uninit_callback_fun(void* args)
     FILE* fp = _file_log_ctx.fp;
     char* buf = _file_log_ctx.buf;
     if(fp) {
+        if(log_file_switch(args) != LOG_SUCCESS) {
+            return LOG_FAIL;
+        }
+
         if(_file_log_ctx.buf && _file_log_ctx.w_pos > 0) {
             fwrite(_file_log_ctx.buf, 1,
                     _file_log_ctx.w_pos, _file_log_ctx.fp);
@@ -509,6 +541,9 @@ int log_file_flush_callback_fun(void* args)
 {
     FILE* fp = _file_log_ctx.fp;
     if(fp) {
+        if(log_file_switch(args) != LOG_SUCCESS) {
+            return LOG_FAIL;
+        }
         if(_file_log_ctx.buf && _file_log_ctx.w_pos > 0) {
             _file_log_ctx.w_size += fwrite(_file_log_ctx.buf, 1,
                     _file_log_ctx.w_pos, _file_log_ctx.fp);
