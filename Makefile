@@ -1,11 +1,11 @@
 CC = cc
 CCFLAGS = -Wall -g
 
-MYSCH=mysch
+MYSCH=myschd
 
 MYSCH_MY_OBJ=mysch.o
 
-MYSCH_OBJ=dict.o dlist.o iniconf.o log.o util.o anet.o \
+MYSCH_OBJ=dict.o dlist.o iniconf.o log.o util.o \
 		$(MYSCH_MY_OBJ)
 
 EXT_CCFLAGS = 

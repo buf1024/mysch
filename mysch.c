@@ -112,8 +112,8 @@ int load_conf(sch_info_t* info, int flag)
 
     READ_CONF_STR_OPT(sec, "RUN_USER", info->run_user);
 
-    if(runas(g_info.run_user) != 0) {
-        printf("runas %s failed.\n", g_info.run_user);
+    if(runas(info->run_user) != 0) {
+        printf("runas %s failed.\n", info->run_user);
         return -1;
     }
 
@@ -220,8 +220,18 @@ int load_conf(sch_info_t* info, int flag)
 
             READ_CONF_STR_MUST(ssec, "RUN_COMMAND", run_cmd);
             READ_CONF_STR_MUST(ssec, "RUN_USER", prog->user);
-            READ_CONF_INT_MUST(ssec, "RUN_FLAG", prog->flag);
-
+            char run_flag[256] = {0};
+            READ_CONF_STR_MUST(ssec, "RUN_FLAG", run_flag);
+            if(strcasecmp(run_flag, "forkfirst") == 0){
+                prog->flag = -1;
+            }else if(strcasecmp(run_flag, "forkonce") == 0){
+                prog->flag = 0;
+            }else if(strcasecmp(run_flag, "forkwatch") == 0){
+                prog->flag = 1;
+            }else{
+                printf("syntax not right, available value: forkfirst forkonce forkwatch\n");
+                return -1;
+            } 
             int ncmd = 0;
             ncmd = split(run_cmd, ' ',  (char**)prog->argv, 128, 16);
             if(ncmd <= 0){
@@ -247,6 +257,7 @@ int load_conf(sch_info_t* info, int flag)
                     log_finish();
                     return -1;
                 }
+                READ_CONF_INT_OPT(ssec, "RUN_HAS_PID_FILE", prog->has_pid_file);
                 READ_CONF_STR_OPT(ssec, "RUN_PID_FILE", prog->pid_file);
             }
 
@@ -481,10 +492,10 @@ void clean_proccess(int killflag)
 int run_prog(prog_t* prog)
 {
 
+    time_t now = time(NULL);
     if(prog->flag > 0 &&
             prog->time != 0) {
         // 防止死循环，常驻进程启动不成功需等待
-        time_t now = time(NULL);
         time_t diff = now - prog->time;
         if(diff <= g_info.sleep_time) {
             LOG_INFO("pause start program %s, timediff %d\n",
@@ -528,6 +539,8 @@ int run_prog(prog_t* prog)
         dict_add(g_info.waitq, dp, sizeof(*dp), dpp, sizeof(*dpp));
 
         LOG_DEBUG("new proccess: %d\n", *dp);
+
+        prog->time = now;
     }
     return 0;
 }
@@ -535,7 +548,7 @@ int run_prog(prog_t* prog)
 int update_pid(prog_t* prog)
 {
     int ret = 0;
-    if(!prog->update_pid) {
+    if(!prog->update_pid && prog->has_pid_file) {
         if (prog->pid_file[0] != 0) {
             pid_t pid;
             if (read_pid_file(&pid, prog->pid_file) == 0) {
@@ -599,9 +612,11 @@ int mytask()
                     run_prog(p);
                     break;
                 }
-                if (kill(p->pid, 0) == 0) {
-                    // 等待程序结束
-                    break;
+                if(!p->has_pid_file) {
+                    if (kill(p->pid, 0) == 0) {
+                        // 等待程序结束
+                        break;
+                    }
                 }
                 // 程序已经结束，继续
                 list_del_node(g_info.progq, n, AL_FREE);

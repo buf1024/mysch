@@ -1,4 +1,4 @@
 mysch
 =====
 
-my raspi schedule monitore
+my raspi schedule monitor

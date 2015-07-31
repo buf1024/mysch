@@ -78,6 +78,7 @@ struct prog_s
 {
     pid_t pid;
     int update_pid;
+    int has_pid_file;
     char pid_file[256];
     char cmd[256];
     int argc;
