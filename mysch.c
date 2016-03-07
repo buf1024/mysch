@@ -153,7 +153,7 @@ int load_conf(sch_info_t* info, int flag)
             }
 
             if (log_initialize_file(lvl, log_path, log_header, log_buffer,
-                    log_sw_time, -1) != 0) {
+                        log_sw_time, -1) != 0) {
                 printf("log_initialize_file failed.\n");
                 return -1;
             }
@@ -541,6 +541,9 @@ int run_prog(prog_t* prog)
         LOG_DEBUG("new proccess: %d\n", *dp);
 
         prog->time = now;
+        if(prog->flag > 0 && !prog->has_pid_file) {
+            prog->update_pid = 1;
+        }
     }
     return 0;
 }
@@ -627,7 +630,7 @@ int mytask()
                 list_del_node(g_info.progq, n, AL_FREE);
             }else {
                 prog_t* f = (prog_t*)
-                        list_node_value(list_first(g_info.progq));
+                    list_node_value(list_first(g_info.progq));
                 if(f->flag < 0) {
                     // 等待程序结束
                     continue;
@@ -685,21 +688,21 @@ int main(int argc, char* argv[])
     //读取命令行参数
     while ((optch = getopt(argc, argv, optstring)) != -1) {
         switch (optch) {
-        case 'h':
-            usage();
-            exit(0);
-        case 't':
-            test = 1;
-            break;
-        case 'e':
-            daemon = 0;
-            break;
-        case 'c':
-            strcpy(g_info.conf, optarg);
-            break;
-        default:
-            usage();
-            exit(0);
+            case 'h':
+                usage();
+                exit(0);
+            case 't':
+                test = 1;
+                break;
+            case 'e':
+                daemon = 0;
+                break;
+            case 'c':
+                strcpy(g_info.conf, optarg);
+                break;
+            default:
+                usage();
+                exit(0);
         }
     }
 
