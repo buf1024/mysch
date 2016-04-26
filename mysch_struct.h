@@ -51,7 +51,7 @@
               " item: %s\n", k);                          \
             return -1;                                    \
         }else{                                            \
-            /*±ÿ–Î»∑±£V±»Tø’º‰¥Û*/                           \
+            /*ÂøÖÈ°ªÁ°Æ‰øùVÊØîTÁ©∫Èó¥Â§ß*/                           \
             strcpy(v, t);                                 \
         }                                                 \
     }while(0)
@@ -61,10 +61,16 @@
     do{                                                   \
         const char* t = ini_get_val(s, k);                \
         if(NULL != t){                                    \
-            /*±ÿ–Î»∑±£V±»Tø’º‰¥Û*/                           \
+            /*ÂøÖÈ°ªÁ°Æ‰øùVÊØîTÁ©∫Èó¥Â§ß*/                           \
             strcpy(v, t);                                 \
         }                                                 \
     }while(0)
+
+
+#define FORK_FIRST  (-1)
+#define FORK_ONCE   (0)
+#define FORK_WATCH  (1)
+#define FORK_PERIOD (2)
 
 typedef struct prog_s prog_t;
 typedef struct cond_s cond_t;

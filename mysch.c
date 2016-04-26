@@ -21,7 +21,7 @@
 #include "iniconf.h"
 #include "log.h"
 
-//ĞÅºÅ
+//ä¿¡å·
 static int g_term = 0;
 static int g_usr1 = 0;
 static int g_usr2 = 0;
@@ -49,17 +49,17 @@ static void sigchild(int signo)
     g_chld = 1;
 }
 
-//×¢²áĞÅºÅ
+//æ³¨å†Œä¿¡å·
 int reg_sign()
 {
-    REGISTER_SIGNAL(SIGTERM, sigterm, 0);//KillĞÅºÅ
-    REGISTER_SIGNAL(SIGINT, sigterm, 0);//ÖÕ¶ËCTRL-CĞÅºÅ
-    REGISTER_SIGNAL(SIGUSR1, sigusr1, 0);//SIGUSR1ĞÅºÅ
-    REGISTER_SIGNAL(SIGUSR2, sigusr2, 0);//SIGUSR2ĞÅºÅ
-    REGISTER_SIGNAL(SIGHUP, SIG_IGN, 0);//ºöÂÔSIGHUPĞÅºÅ
-    REGISTER_SIGNAL(SIGCHLD, sigchild, 0);//×Ó½ø³ÌÍË³ö
-    REGISTER_SIGNAL(SIGPIPE, SIG_IGN, 0);//ºöÂÔSIGPIPEĞÅºÅ
-    REGISTER_SIGNAL(SIGALRM, SIG_IGN, 0);//ºöÂÔSIGALRMĞÅºÅ
+    REGISTER_SIGNAL(SIGTERM, sigterm, 0);//Killä¿¡å·
+    REGISTER_SIGNAL(SIGINT, sigterm, 0);//ç»ˆç«¯CTRL-Cä¿¡å·
+    REGISTER_SIGNAL(SIGUSR1, sigusr1, 0);//SIGUSR1ä¿¡å·
+    REGISTER_SIGNAL(SIGUSR2, sigusr2, 0);//SIGUSR2ä¿¡å·
+    REGISTER_SIGNAL(SIGHUP, SIG_IGN, 0);//å¿½ç•¥SIGHUPä¿¡å·
+    REGISTER_SIGNAL(SIGCHLD, sigchild, 0);//å­è¿›ç¨‹é€€å‡º
+    REGISTER_SIGNAL(SIGPIPE, SIG_IGN, 0);//å¿½ç•¥SIGPIPEä¿¡å·
+    REGISTER_SIGNAL(SIGALRM, SIG_IGN, 0);//å¿½ç•¥SIGALRMä¿¡å·
 
     return 0;
 }
@@ -223,11 +223,13 @@ int load_conf(sch_info_t* info, int flag)
             char run_flag[256] = {0};
             READ_CONF_STR_MUST(ssec, "RUN_FLAG", run_flag);
             if(strcasecmp(run_flag, "forkfirst") == 0){
-                prog->flag = -1;
+                prog->flag = FORK_FIRST;
             }else if(strcasecmp(run_flag, "forkonce") == 0){
-                prog->flag = 0;
+                prog->flag = FORK_ONCE;
             }else if(strcasecmp(run_flag, "forkwatch") == 0){
-                prog->flag = 1;
+                prog->flag = FORK_WATCH;
+            }else if(strcasecmp(run_flag, "forkperiod") == 0){
+                prog->flag = FORK_PERIOD;
             }else{
                 printf("syntax not right, available value: forkfirst forkonce forkwatch\n");
                 return -1;
@@ -245,7 +247,7 @@ int load_conf(sch_info_t* info, int flag)
             prog->argc = ncmd;
             strcpy(prog->cmd, prog->argv[0]);
 
-            if(prog->flag > 0) {
+            if(prog->flag) {
                 char cond[1024] = {0};
                 READ_CONF_STR_MUST(ssec, "RUN_TIME", cond);
 
@@ -317,7 +319,7 @@ int judge_condition(prog_t* prog)
 
     int wday = tm->tm_wday;
     if(wday == 0) {
-        wday = 7; // ĞÇÆÚÌì
+        wday = 7; // æ˜ŸæœŸå¤©
     }
     int sec = tm->tm_hour * 3600 + tm->tm_min * 60 + tm->tm_sec;
 
@@ -327,6 +329,13 @@ int judge_condition(prog_t* prog)
         cond_t* c = list_node_value(node);
 
         if(c->day[wday] == 1) {
+        	if(prog->flag == FORK_PERIOD) {
+        		int diff = time(NULL) - prog->time;
+        		if(diff > c->start) {
+        			list_release_iterator(it);
+        			return 1;
+        		}
+        	}
             if(sec >= c->start && sec <= c->end) {
                 list_release_iterator(it);
                 return 1;
@@ -380,33 +389,40 @@ int build_condition(prog_t* prog, const char* cond)
             break;
         }
 
-        char times[2][64] =  { { 0 } };
-        int tnum = 0;
-        tnum = split(daytime[1], '-', (char**)times, 64, 2);
-        if(tnum != 2) {
-            LOG_ERROR("split %s failed.\n", daytimes[i]);
-            fail = 1;
-            break;
-        }
-        if(strlen(times[0]) != 5 || times[0][2] != ':' ||
-                strlen(times[1]) != 5 || times[1][2] != ':' ) {
-            LOG_ERROR("time split format not ritht. time1=%s, times2=%s\n",
-                    times[0], times[1]);
-            fail = 1;
-            break;
-        }
+        int t_start, t_end;
+		if (prog->flag != FORK_PERIOD) {
+			char times[2][64] = { { 0 } };
+			int tnum = 0;
+			tnum = split(daytime[1], '-', (char**) times, 64, 2);
+			if (tnum != 2) {
+				LOG_ERROR("split %s failed.\n", daytimes[i]);
+				fail = 1;
+				break;
+			}
+			if (strlen(times[0]) != 5 || times[0][2] != ':'
+					|| strlen(times[1]) != 5 || times[1][2] != ':') {
+				LOG_ERROR("time split format not ritht. time1=%s, times2=%s\n",
+						times[0], times[1]);
+				fail = 1;
+				break;
+			}
 
-        int t_start = atoi(times[0]) * 3600 + atoi(times[0] + 3) * 60;
-        int t_end = atoi(times[1]) * 3600 + atoi(times[1] + 3) * 60;
+			t_start = atoi(times[0]) * 3600 + atoi(times[0] + 3) * 60;
+			t_end = atoi(times[1]) * 3600 + atoi(times[1] + 3) * 60;
 
-        if(t_start >= t_end ||
-                t_start < 0 || t_end < 0 ||
-                t_start > 86400 || t_end > 86400) {
-            LOG_ERROR("time data format not ritht. time1=%s, times2=%s, start=%d, end=%d\n",
-                    times[0], times[1], t_start, t_end);
-            fail = 1;
-            break;
-        }
+			if (t_start >= t_end || t_start < 0 || t_end < 0 || t_start > 86400
+					|| t_end > 86400) {
+				LOG_ERROR(
+						"time data format not ritht. time1=%s, times2=%s, start=%d, end=%d\n",
+						times[0], times[1], t_start, t_end);
+				fail = 1;
+				break;
+			}
+
+		}else{
+			t_start = atoi(daytime[1]) * 60;
+			t_end = t_start;
+		}
 
         LOG_DEBUG("condition: daystart=%d, dayend=%d, timestart=%d, timeend=%d\n",
                 d_start, d_end, t_start, t_end);
@@ -495,7 +511,7 @@ int run_prog(prog_t* prog)
     time_t now = time(NULL);
     if(prog->flag > 0 &&
             prog->time != 0) {
-        // ·ÀÖ¹ËÀÑ­»·£¬³£×¤½ø³ÌÆô¶¯²»³É¹¦ĞèµÈ´ı
+        // é˜²æ­¢æ­»å¾ªç¯ï¼Œå¸¸é©»è¿›ç¨‹å¯åŠ¨ä¸æˆåŠŸéœ€ç­‰å¾…
         time_t diff = now - prog->time;
         if(diff <= g_info.sleep_time) {
             LOG_INFO("pause start program %s, timediff %d\n",
@@ -561,7 +577,7 @@ int update_pid(prog_t* prog)
                     prog->pid = pid;
                     prog->update_pid = 1;
 
-                    // ĞÂ½ø³ÌĞÅÏ¢
+                    // æ–°è¿›ç¨‹ä¿¡æ¯
 
                     pid_t* dp = (pid_t*)malloc(sizeof(dp));
                     prog_t** dpp = (prog_t**)malloc(sizeof(dpp));
@@ -611,28 +627,40 @@ int mytask()
             prog_t* p = list_node_value(n);
             if(p->flag < 0) {
                 if(p->pid == 0) {
-                    // Æô¶¯³ÌĞò
+                    // å¯åŠ¨ç¨‹åº
                     run_prog(p);
                     break;
                 }
                 if(!p->has_pid_file) {
                     if (kill(p->pid, 0) == 0) {
-                        // µÈ´ı³ÌĞò½áÊø
+                        // ç­‰å¾…ç¨‹åºç»“æŸ
                         break;
                     }
                 }
-                // ³ÌĞòÒÑ¾­½áÊø£¬¼ÌĞø
+                // ç¨‹åºå·²ç»ç»“æŸï¼Œç»§ç»­
                 list_del_node(g_info.progq, n, AL_FREE);
 
-            }else if(p->flag == 0) {
+            }else if(p->flag == FORK_ONCE || p->flag == FORK_PERIOD) {
+				if (p->flag == FORK_PERIOD) {
+					if (p->pid && kill(p->pid, 0) == 0) {
+						continue;
+					}
+	                if (judge_condition(p)) {
+	                    run_prog(p);
+	                    // ç¨‹åºå·²ç»å¯åŠ¨ï¼Œä¸ç®¡å®ƒç”Ÿæ­»å­˜äº¡
+	                    list_del_node(g_info.progq, n, AL_FREE);
+	                    continue;
+	                }
+
+				}
                 run_prog(p);
-                // ³ÌĞòÒÑ¾­Æô¶¯£¬²»¹ÜËüÉúËÀ´æÍö
+                // ç¨‹åºå·²ç»å¯åŠ¨ï¼Œä¸ç®¡å®ƒç”Ÿæ­»å­˜äº¡
                 list_del_node(g_info.progq, n, AL_FREE);
             }else {
                 prog_t* f = (prog_t*)
                     list_node_value(list_first(g_info.progq));
                 if(f->flag < 0) {
-                    // µÈ´ı³ÌĞò½áÊø
+                    // ç­‰å¾…ç¨‹åºç»“æŸ
                     continue;
                 }
 
@@ -643,7 +671,7 @@ int mytask()
                             continue;
                         }
                         if (kill(p->pid, 0) == 0) {
-                            // ³ÌĞòÕıÔËĞĞ
+                            // ç¨‹åºæ­£è¿è¡Œ
                             continue;
                         }
                     }
@@ -655,7 +683,7 @@ int mytask()
                             continue;
                         }
                         if (kill(p->pid, 0) == 0) {
-                            // ³ÌĞòÕıÔËĞĞ,¸ÉµôËü
+                            // ç¨‹åºæ­£è¿è¡Œ,å¹²æ‰å®ƒ
                             LOG_INFO("killing %d\n", p->pid);
                             kill(p->pid, SIGTERM);
                             waitpid(p->pid, NULL, 0);
@@ -685,7 +713,7 @@ int main(int argc, char* argv[])
     int test = 0;
     int daemon = 1;
 
-    //¶ÁÈ¡ÃüÁîĞĞ²ÎÊı
+    //è¯»å–å‘½ä»¤è¡Œå‚æ•°
     while ((optch = getopt(argc, argv, optstring)) != -1) {
         switch (optch) {
             case 'h':
