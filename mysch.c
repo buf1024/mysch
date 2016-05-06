@@ -259,7 +259,16 @@ int load_conf(sch_info_t* info, int flag)
                     log_finish();
                     return -1;
                 }
-                READ_CONF_INT_OPT(ssec, "RUN_HAS_PID_FILE", prog->has_pid_file);
+                char has_pid[1024] = {0};
+                READ_CONF_STR_OPT(ssec, "RUN_HAS_PID_FILE", has_pid);
+                if(strcmp(has_pid, "1") == 0) {
+                    prog->has_pid_file = 1;
+                } 
+                if(prog->has_pid_file == 0) {
+                    if(strcasecmp(has_pid, "yes") == 0) {
+                        prog->has_pid_file = 1;
+                    }
+                }
                 READ_CONF_STR_OPT(ssec, "RUN_PID_FILE", prog->pid_file);
             }
 
