@@ -9,6 +9,7 @@
 #define __UTIL_H__
 
 #include <time.h>
+#include <unistd.h>
 
 #define DATE_TIME_FORMAT_1 "%04d%02d%02d%02d%02d%02d"
 #define DATE_TIME_FORMAT_2 "%04d-%02d-%02d %02d:%02d:%02d"
